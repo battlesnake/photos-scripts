@@ -1,0 +1,12 @@
+*/*
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.tiff
+*.pp3
+*.nef
+*.MOV
+*.gz
+*.zip
+backup.sh
