@@ -30,13 +30,13 @@ function config {
 	readvalues "Target video frame-rate(s)" "validate_number" "rates"
 	readvalues "Target video resolution(s)" "validate_size" "sizes"
 	readvalues "Target video bit-rate(s) (kbit/s)" "validate_number" "bitrates"
+	readvalue "Extra FFMPEG options for master render" "true" "extra master ffmpeg options"
 }
 
 function readvalue {
 	local prompt="$1" validator="$2" key="$3" value
 	while true; do
-		printf " * %s: " "${prompt}"
-		read -ei "$(getval "${key}")" value
+		read -p "$(echo " * ${prompt}: ")" -ei "$(getval "${key}")" value
 		if "${validator}" ${value}; then
 			break
 		fi
@@ -174,11 +174,13 @@ function master {
 	local start_index="$(getval "start index")"
 	local src=( -r "${rate}" -start_number "${start_index}" -i "tmp/wm-%04d.${tmp_format}" )
 	local video_opts=( -c:v libx264 -crf 0 -pix_fmt yuv444p )
+	local proj_video_opts=( $(getval "extra master ffmpeg options" ) )
 	title "Rendering master video"
 	mkdir -p "out"
 	${ffmpeg} \
 		"${src[@]}" \
 		"${video_opts[@]}" \
+		"${proj_video_opts[@]}" \
 		"out/master.mp4"
 }
 
@@ -297,6 +299,6 @@ while (( $# )); do
 	help) ;;&
 	-h) ;;&
 	--help) help;;
-	*) echo "Unrecognised command \"$1\""; echo ""; help;;
+	*) echo "Unrecognised command \"${param}\""; echo ""; help;;
 	esac
 done

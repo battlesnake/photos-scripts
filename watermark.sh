@@ -24,12 +24,23 @@ declare working_size="2400x"
 
 declare silent=0
 
+declare magick=
+
+if which magick 2>/dev/null >/dev/null; then
+	magick=magick
+elif which convert 2>/dev/null >/dev/null; then
+	magick=convert
+else
+	echo >&2 "Imagemagick not found"
+	exit 1
+fi
+
 function render_watermark {
 	if ! (( silent )); then
 		printf -- "Rendering watermark to \"%s\"\n" "${wm_file}" >&2
 	fi
 	rm -f "${wm_file}"
-	magick \
+	"$magick" \
 		-gravity "center" \
 		\( \
 			-size "${wm_width}x${wm_height}" xc:none \
@@ -65,7 +76,7 @@ function watermark_file {
 	if ! (( silent )); then
 		printf -- "\e[37m%s\e[37m => \e[32m%s\e[37m\n" "${in##*/}" "${out}" >&2
 	fi
-	magick \
+	"$magick" \
 		\( \
 			\( "${in}" -resize "${working_size}" -unsharp "2x0.5+0.7+0" \) \
 			\( "${wm_file}" -geometry "${wm_offset}" -gravity "${wm_origin}" \) \
