@@ -36,7 +36,7 @@ function config {
 function readvalue {
 	local prompt="$1" validator="$2" key="$3" value
 	while true; do
-		read -p "$(echo " * ${prompt}: ")" -ei "$(getval "${key}")" value
+		read -p " * ${prompt}: " -ei "$(getval "${key}")" value
 		if "${validator}" ${value}; then
 			break
 		fi
@@ -269,14 +269,14 @@ while (( $# )); do
 	param="$1"
 	shift
 	case "${param}" in
-	configure) ;;&
+	configure) ;&
 	config) config;;
-	process) ;;&
-	processframes) ;;&
+	process) ;&
+	processframes) ;&
 	frames) processframes;;
 	master) master;;
 	render) output;;
-	clean) ;;&
+	clean) ;&
 	rmtmp) rmtmp;;
 	full-reset) full_reset;;
 	processframe)
@@ -296,8 +296,8 @@ while (( $# )); do
 		shift
 		getval "${key}"
 		;;
-	help) ;;&
-	-h) ;;&
+	help) ;&
+	-h) ;&
 	--help) help;;
 	*) echo "Unrecognised command \"${param}\""; echo ""; help;;
 	esac

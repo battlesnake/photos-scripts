@@ -10,3 +10,6 @@
 *.gz
 *.zip
 backup.sh
+!.fonts/*
+.*.swp
+.*.swo

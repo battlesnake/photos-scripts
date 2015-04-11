@@ -2,13 +2,16 @@
 
 set -euo pipefail
 
+# May be overridden by command line arguments
 declare output_quality="55"
 declare output_size="900x"
 
+# Subdirectory to output to (used by watermark_folder)
 declare batch_out="marked"
 
+# Watermark configuration
 declare text="hackology.co.uk"
-declare text_font="/cygdrive/c/Windows/Fonts/OpenSans-Bold.ttf"
+declare text_font="$(dirname "$0")/.fonts/Open_Sans-normal-600.ttf"
 declare text_size="55"
 declare text_color="#0004"
 declare bg_color="white"
@@ -20,12 +23,14 @@ declare wm_radius="50"
 declare wm_offset="+75+0"
 declare wm_origin="southeast"
 
+# If output size is set via command line, working size will be enlarged if needed
 declare working_size="2400x"
 
 declare silent=0
 
 declare magick=
 
+# Get name of imagemagick
 if which magick 2>/dev/null >/dev/null; then
 	magick=magick
 elif which convert 2>/dev/null >/dev/null; then
@@ -35,6 +40,7 @@ else
 	exit 1
 fi
 
+# Render the watermark
 function render_watermark {
 	if ! (( silent )); then
 		printf -- "Rendering watermark to \"%s\"\n" "${wm_file}" >&2
@@ -64,12 +70,14 @@ function render_watermark {
 		"${wm_file}"
 }
 
+# Generate watermark if needed
 function watermark_needed {
 	if ! [ -e "${wm_file}" ]; then
 		render_watermark
 	fi
 }
 
+# Watermark a file $1, output to file $2
 function watermark_file {
 	watermark_needed
 	local in="$1" out="$2"
@@ -87,6 +95,7 @@ function watermark_file {
 		"${out}"
 }
 
+# Watermark all the jpegs in folder $1, output to a subfolder $batch_out
 function watermark_folder {
 	watermark_needed
 	local dir="$1"
@@ -103,6 +112,24 @@ function watermark_folder {
 		dest="${out}/${src#${in}}"
 		watermark_file "${src}" "${dest}"
 	done
+}
+
+# Parse a size in the form \d*x\d*
+function parse_size {
+	declare size="$1"
+	printf -- "%s\n" "$(echo "${size}" | cut -dx -f1)" "$(echo "${size}" | cut -dx -f2)"
+}
+
+# Ensure that the working size is at least as big as the output size
+function check_working_size {
+	readarray -t out < <(parse_size "${output_size}")
+	readarray -t work < <(parse_size "${working_size}")
+	for (( i=0; i<2; i++ )); do
+		if [ "${out[$i]}" ] && [ "${work[$i]}" ] && (( ${out[$i]} > ${work[$i]} )); then
+			work[$i]="${out[$i]}"
+		fi
+	done
+	working_size="${work[0]}x${work[1]}"
 }
 
 declare param
@@ -123,6 +150,7 @@ while (( $# )); do
 		silent=1
 	elif [ "${param}" == "--output-size" ]; then
 		output_size="$1"
+		check_working_size
 		shift
 	elif [ "${param}" == "--output-quality" ]; then
 		output_quality="$1"
