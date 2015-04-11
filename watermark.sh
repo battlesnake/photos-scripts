@@ -46,7 +46,7 @@ function render_watermark {
 		printf -- "Rendering watermark to \"%s\"\n" "${wm_file}" >&2
 	fi
 	rm -f "${wm_file}"
-	"$magick" \
+	nice "$magick" \
 		-gravity "center" \
 		\( \
 			-size "${wm_width}x${wm_height}" xc:none \
@@ -84,7 +84,7 @@ function watermark_file {
 	if ! (( silent )); then
 		printf -- "\e[37m%s\e[37m => \e[32m%s\e[37m\n" "${in##*/}" "${out}" >&2
 	fi
-	"$magick" \
+	nice "$magick" \
 		\( \
 			\( "${in}" -resize "${working_size}" -unsharp "2x0.5+0.7+0" \) \
 			\( "${wm_file}" -geometry "${wm_offset}" -gravity "${wm_origin}" \) \

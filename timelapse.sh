@@ -7,11 +7,17 @@ declare watermark="$(dirname "${self}")/watermark.sh"
 
 declare tmp_format="bmp"
 
-declare ffmpeg="eval /usr/bin/ffmpeg -loglevel warning -y </dev/null"
-declare magick="/usr/bin/magick"
+declare ffmpeg="eval nice /usr/bin/ffmpeg -loglevel warning -y </dev/null"
+declare magick
 
-if ! [ -e "${magick}"  ]; then
-	magick="/usr/bin/convert"
+# Get name of imagemagick
+if which magick 2>/dev/null >/dev/null; then
+	magick=magick
+elif which convert 2>/dev/null >/dev/null; then
+	magick=convert
+else
+	echo >&2 "Imagemagick not found"
+	exit 1
 fi
 
 function title {
@@ -157,7 +163,7 @@ function processframe {
 	fi
 	# printf -- "Processing frame \"%s\" => \"%s\"\n" "${frame}" "${marked}"
 	mkdir -p "tmp"
-	${magick} "${frame}" \
+	nice "${magick}" "${frame}" \
 		"${fit[@]}" \
 		"${cropped}"
 	"${watermark}" --silent \
@@ -179,8 +185,8 @@ function master {
 	mkdir -p "out"
 	${ffmpeg} \
 		"${src[@]}" \
-		"${video_opts[@]}" \
-		"${proj_video_opts[@]}" \
+		"${video_opts[@]+${video_opts[@]}}" \
+		"${proj_video_opts[@]+${proj_video_opts[@]}}" \
 		"out/master.mp4"
 }
 
@@ -217,18 +223,18 @@ function output_one {
 	title "Rendering ${size}@${rate}Hz@${bitrate}kbit/s video"
 	${ffmpeg} \
 		"${src[@]}" \
-		"${opts[@]}" \
-		"${out_mp4[@]}" \
+		"${opts[@]+${opts[@]}}" \
+		"${out_mp4[@]+${out_mp4[@]}}" \
 		"${out_name}.mp4"
 	${ffmpeg} \
 		"${src[@]}" \
-		"${opts[@]}" \
-		"${out_webm[@]}" \
+		"${opts[@]+${opts[@]}}" \
+		"${out_webm[@]+${out_webm[@]}}" \
 		"${out_name}.webm"
 	${ffmpeg} \
 		"${src[@]}" \
-		"${opts[@]}" \
-		"${out_ogg[@]}" \
+		"${opts[@]+${opts[@]}}" \
+		"${out_ogg[@]+${out_ogg[@]}}" \
 		"${out_name}.ogv"
 }
 
