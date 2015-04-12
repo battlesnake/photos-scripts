@@ -28,7 +28,6 @@ function title {
 
 # Configuration
 function config {
-	local format rates sizes
 	title "Configuration"
 	printf "The resolution for the master file is the first resolution given\n"
 	readvalue "Project name" "validate_name" "project name"
@@ -42,6 +41,7 @@ function config {
 }
 
 function paths {
+	title "Configuration - paths"
 	readvalue "Temporary folder name (frames)" "validate_name" "temporary folder"
 	readvalue "Output folder name (video)" "validate_name" "output folder"
 }
@@ -77,8 +77,8 @@ function setval {
 	(
 		< "${config_file}" grep -vP "^${key}=" || true
 		echo "${key}=${val}"
-	) | sort > timelapse.tmp
-	mv timelapse.{tmp,cfg}
+	) | sort > ${config_file}.tmp
+	mv ${config_file}{.tmp,}
 }
 
 function getval {
