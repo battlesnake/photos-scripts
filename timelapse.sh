@@ -10,6 +10,8 @@ declare tmp_format="bmp"
 declare ffmpeg="eval nice /usr/bin/ffmpeg -loglevel warning -y </dev/null"
 declare magick
 
+declare config_file="timelapse.cfg"
+
 # Get name of imagemagick
 if which magick 2>/dev/null >/dev/null; then
 	magick=magick
@@ -39,6 +41,11 @@ function config {
 	readvalue "Extra FFMPEG options for master render" "true" "extra master ffmpeg options"
 }
 
+function paths {
+	readvalue "Temporary folder name (frames)" "validate_name" "temporary folder"
+	readvalue "Output folder name (video)" "validate_name" "output folder"
+}
+
 function readvalue {
 	local prompt="$1" validator="$2" key="$3" value
 	while true; do
@@ -66,9 +73,9 @@ function readvalues {
 
 function setval {
 	local key="$1" val="$2"
-	touch timelapse.cfg
+	touch "${config_file}"
 	(
-		< timelapse.cfg grep -vP "^${key}=" || true
+		< "${config_file}" grep -vP "^${key}=" || true
 		echo "${key}=${val}"
 	) | sort > timelapse.tmp
 	mv timelapse.{tmp,cfg}
@@ -76,8 +83,16 @@ function setval {
 
 function getval {
 	local key="$1"
-	touch timelapse.cfg
-	< timelapse.cfg grep -P "^${key}=" | sed -E "s/^${key}=//" || true
+	touch "${config_file}"
+	< "${config_file}" grep -P "^${key}=" | sed -E "s/^${key}=//" || getval_default "$1"
+}
+
+function getval_default {
+	local key="$1"
+	case "${key}" in
+	"temporary folder") echo "tmp";;
+	"output folder") echo "out";;
+	esac
 }
 
 function checkall {
@@ -139,12 +154,13 @@ function processframes {
 # Crop frame and watermark
 function processframe {
 	local frame="$1"
+	local tmpdir="$(getval "temporary folder")"
 	local out="$(echo "$1" | grep -Po "\d{4}" | head -n 1).${tmp_format}"
 	local size="$(getval "sizes" | cut -f1 -d\ )"
 	local width="$(echo "$size" | cut -f1 -dx)"
 	local height="$(echo "$size" | cut -f2 -dx)"
 	local crop_gravity="$(getval "crop gravity")"
-	local cropped="tmp/crop-${out}" marked="tmp/wm-${out}"
+	local cropped="${tmpdir}/crop-${out}" marked="${tmpdir}/wm-${out}"
 	local fit=( "" )
 	if [ "${crop_gravity}" == "squash" ]; then
 		fit=(
@@ -162,7 +178,7 @@ function processframe {
 		)
 	fi
 	# printf -- "Processing frame \"%s\" => \"%s\"\n" "${frame}" "${marked}"
-	mkdir -p "tmp"
+	mkdir -p "${tmpdir}"
 	nice "${magick}" "${frame}" \
 		"${fit[@]}" \
 		"${cropped}"
@@ -176,18 +192,20 @@ function processframe {
 
 # Render high-res, high-quality video
 function master {
+	local outdir="$(getval "output folder")"
+	local tmpdir="$(getval "temporary folder")"
 	local rate="$(getval "rates" | cut -f1 -d\ )"
 	local start_index="$(getval "start index")"
-	local src=( -r "${rate}" -start_number "${start_index}" -i "tmp/wm-%04d.${tmp_format}" )
+	local src=( -r "${rate}" -start_number "${start_index}" -i "${tmpdir}/wm-%04d.${tmp_format}" )
 	local video_opts=( -c:v libx264 -crf 0 -pix_fmt yuv444p )
 	local proj_video_opts=( $(getval "extra master ffmpeg options" ) )
 	title "Rendering master video"
-	mkdir -p "out"
+	mkdir -p "${outdir}"
 	${ffmpeg} \
 		"${src[@]}" \
 		"${video_opts[@]+${video_opts[@]}}" \
 		"${proj_video_opts[@]+${proj_video_opts[@]}}" \
-		"out/master.mp4"
+		"${outdir}/master.mp4"
 }
 
 # Transcode the master video lower-res / lower-quality for web browsers
@@ -206,20 +224,24 @@ function output {
 }
 
 function output_one {
+	local outdir="$(getval "output folder")"
 	local bitrate="$1" size="$2" rate="$3" size_name
 	local project_name="$(getval "project name")"
-	local src=( -r "${rate}" -i "out/master.mp4" )
+	local src=( -r "${rate}" -i "${outdir}/master.mp4" )
 	local out_mp4=( -c:v libx264 -pix_fmt yuv420p -preset slow -profile:v baseline -movflags faststart )
 	local out_ogg=( -c:v libtheora )
 	local out_webm=( -c:v libvpx )
 	case "${size}" in
+	2048x1080) size_name="2k";;
+	4096x2160) size_name="4k";;
+	3840x2160) size_name="uhd";;
 	1920x1080) size_name="hd1080";;
 	1280x720) size_name="hd720";;
 	1024x768) size_name="xga";;
 	*) size_name="${size}";;
 	esac
 	local opts=( -s "${size}" -r "${rate}" -b:v "${bitrate}k" -an )
-	local out_name="out/${project_name}-${size_name}-${rate}-${bitrate}"
+	local out_name="${outdir}/${project_name}-${size_name}-${rate}-${bitrate}"
 	title "Rendering ${size}@${rate}Hz@${bitrate}kbit/s video"
 	${ffmpeg} \
 		"${src[@]}" \
@@ -240,14 +262,17 @@ function output_one {
 
 # Remove temporary folder
 function rmtmp {
+	local tmpdir="$(getval "temporary folder")"
 	title "Removing temporary files"
-	rm -rf -- tmp
+	[ "${tmpdir}" ] && rm -rf -- "${tmpdir}"
 }
 
 # Remove temporary folder and output folder
 function full_reset {
+	local tmpdir="$(getval "temporary folder")"
+	local outdir="$(getval "output folder")"
 	title "Removing temporary and output files"
-	rm -rf -- tmp out
+	[ "${tmpdir}" ] && [ "${outdir}" ] && rm -rf -- "${tmpdir}" "${outdir}"
 }
 
 # Display command line help
@@ -255,28 +280,81 @@ function help {
 	title "Help"
 	echo "./$(basename "$0") [comand] [command] [...]"
 	echo "Commands:"
+	echo "  using - Next parameter specifies configuration file (default: timelapse.cfg)"
 	echo "  configure - Configure the timelapse"
+	echo "  paths - Change the paths for temporary / output files"
 	echo "  frames - process the source frames"
 	echo "  master - render the master video"
 	echo "  render - transcode the final videos from the master"
 	echo "  rmtmp - remove temporary folder"
 	echo "  full-reset - remove temporary folder and output folder"
 	echo ""
+	echo "  Only 'configure' and 'paths' require user interaction."
+	echo ""
+	echo "Typical usage:"
+	echo "  ./$(basename "$0") configure frames master render"
+	echo ""
+	echo "  This configures the timelapse, processes the frames, renders the"
+	echo "  master video, then transcodes it to the target sizes/bitrates"
+	echo ""
+	echo "Configuration:"
+	echo "  This is stored in the configuration file.  The default file if none"
+	echo "  is specified via the 'using' clause is 'timelapse.cfg'.  The file"
+	echo "  is plain-text key=value format and will be created if it does not"
+	echo "  exist already."
+	echo ""
+	echo "  Example: If I want two separate configurations, one for the original"
+	echo "  timelapse and one for the noise-reduced one:"
+	echo ""
+	echo "  ./$(basename "$0") using timelapse-orig.cfg configure paths frames"
+	echo ""
+	echo "  This configures the first timelapse and stores the configuration to"
+	echo "  timelapse-orig.fg."
+	echo "  It also configures the paths for temporary and output files, so we"
+	echo "  can share the same temporary folder as the denoised timelapse, but"
+	echo "  avoid overwriting the output from it."
+	echo "  It then processes the frames, scaling and watermarking as needed."
+	echo ""
+	echo "  ./$(basename "$0") using timelapse-nr.cfg configure paths"
+	echo ""
+	echo "  This configures the second timelapse, storing the configuration to"
+	echo "  timelapse-nr.cfg.  We specify our noise-reduction filters via the"
+	echo "  'Extra FFMPEG options for master render' option when asked."
+	echo "  It configures the paths, so we can share the same temporary folder"
+	echo "  as the first timelapse but output to a different folder."
+	echo "  We don't need to specify the 'frames' command, since this generates"
+	echo "  temporary files that are shared by the first timelapse."
+	echo ""
+	echo "  ./$(basename "$0") using timelapse-orig.cfg master render"
+	echo "  ./$(basename "$0") using timelapse-nr.cfg master render"
+	echo ""
+	echo "  Masters and renders each timelapse, using the same pre-processed"
+	echo "  temporary files for both, but writing the outputs to two separate"
+	echo "  folders."
 	exit 1
 }
 
 # Read command line parameters
 if ! (( $# )); then
-	set configure frames master render
+	set help
 fi
 
 declare param arg key val
+
+if (( $# )) && [ "$1" == "using" ]; then
+	shift
+	config_file="$1"
+	shift
+fi
+
 while (( $# )); do
 	param="$1"
 	shift
 	case "${param}" in
+	using) echo '"using" must be first parameter if specified' >&2; exit 1;;
 	configure) ;&
 	config) config;;
+	paths) paths;;
 	process) ;&
 	processframes) ;&
 	frames) processframes;;
