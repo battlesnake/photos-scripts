@@ -5,7 +5,7 @@ set -euo pipefail
 declare self="$(realpath "$0")"
 declare watermark="$(dirname "${self}")/watermark.sh"
 
-declare tmp_format="bmp"
+declare tmp_format="png"
 
 declare ffmpeg="eval nice /usr/bin/ffmpeg -loglevel warning -y </dev/null"
 declare magick
@@ -286,7 +286,7 @@ function help {
 		else
 			printf -- "  %s\n" "${line}"
 		fi
-	done < README.md
+	done < "$(dirname "$(realpath "$0")")/README.md"
 	exit 1
 }
 
