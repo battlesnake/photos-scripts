@@ -8,19 +8,44 @@ declare watermark="$(dirname "${self}")/watermark.sh"
 declare tmp_format="bmp"
 
 declare ffmpeg="eval nice /usr/bin/ffmpeg -loglevel warning -y </dev/null"
-declare magick
+declare -a magick=()
 
+# Number of frames to process in parallel (via xargs)
+declare parallel_frames=4
+
+# Default name of config file
 declare config_file="timelapse.cfg"
 
 # Get name of imagemagick
-if which magick 2>/dev/null >/dev/null; then
-	magick=magick
+if false; then
+	false
+elif which magick 2>/dev/null >/dev/null; then
+	magick=('magick')
 elif which convert 2>/dev/null >/dev/null; then
-	magick=convert
+	magick=('convert')
+elif which gm 2>/dev/null >/dev/null; then
+	magick=('gm' 'convert')
 else
 	echo >&2 "Imagemagick not found"
 	exit 1
 fi
+
+declare magick_debug=0
+
+if (( magick_debug )); then
+	printf -- 'DEBUG> magick ='
+	printf -- ' "%s"' "${magick[@]}"
+	printf -- '\n'
+fi
+
+function conv {
+	if (( magick_debug )); then
+		printf -- 'DEBUG>'
+		printf -- ' "%s"' "$@"
+		printf -- '\n'
+	fi
+	"${magick[@]}" "$@"
+}
 
 function title {
 	printf "\e[1m%s\e[0m\n" "$*"
@@ -146,7 +171,7 @@ function processframes {
 	else
 		title "Processing ${count} frames *.${format}"
 		printf -- "%s\0" "${frames[@]}" | \
-			xargs -0 -n1 -P3 -I{} "${self}" processframe {}
+			xargs -0 -n1 -P${parallel_frames} -I{} "${self}" processframe {}
 		printf -- '\n'
 	fi
 }
@@ -179,7 +204,7 @@ function processframe {
 	fi
 	# printf -- "Processing frame \"%s\" => \"%s\"\n" "${frame}" "${marked}"
 	mkdir -p "${tmpdir}"
-	nice "${magick}" "${frame}" \
+	conv "${frame}" \
 		"${fit[@]}" \
 		"${cropped}"
 	"${watermark}" --silent \

@@ -28,17 +28,71 @@ declare working_size="2400x"
 
 declare silent=0
 
-declare magick=
+declare -a magick=()
+declare magick_mode=''
 
 # Get name of imagemagick
-if which magick 2>/dev/null >/dev/null; then
-	magick=magick
+if false; then
+	false
+elif which magick 2>/dev/null >/dev/null; then
+	magick=('magick')
+	magick_mode='im'
 elif which convert 2>/dev/null >/dev/null; then
-	magick=convert
+	magick=('convert')
+	magick_mode='im'
+elif which gm 2>/dev/null >/dev/null; then
+	magick=('gm' 'convert')
+	magick_mode='gm'
 else
 	echo >&2 "Imagemagick not found"
 	exit 1
 fi
+
+declare -a draw_text=()
+declare composite_verb
+declare composite_cut_out
+declare composite_layer_under
+declare composite_atop
+declare alpha_set
+case "${magick_mode}" in
+gm)
+	draw_text=('-draw' "text 0,0 ${text}")
+	composite_verb=
+	composite_cut_out='Out'
+	composite_layer_under='Over'
+	composite_atop='Atop'
+	alpha_set='-matte'
+	;;
+im)
+	draw_text=('-annotate' '+0+0' "${text}")
+	composite_verb='-composite'
+	composite_cut_out='Dst_Out'
+	composite_layer_under='Dst_Over'
+	composite_atop='Atop'
+	alpha_set='-alpha set'
+	;;
+*)
+	printf >&2 -- 'Unknown magick mode: "%s"\n' "${magick_mode}"
+	exit 1
+	;;
+esac
+
+declare magick_debug=0
+
+if (( magick_debug )); then
+	printf -- 'DEBUG> magick ='
+	printf -- ' "%s"' "${magick[@]}"
+	printf -- '\n'
+fi
+
+function conv {
+	if (( magick_debug )); then
+		printf -- 'DEBUG>'
+		printf -- ' "%s"' "$@"
+		printf -- '\n'
+	fi
+	"${magick[@]}" "$@"
+}
 
 # Render the watermark
 function render_watermark {
@@ -46,7 +100,7 @@ function render_watermark {
 		printf -- "Rendering watermark to \"%s\"\n" "${wm_file}" >&2
 	fi
 	rm -f "${wm_file}"
-	nice "$magick" \
+	conv \
 		-gravity "center" \
 		\( \
 			-size "${wm_width}x${wm_height}" xc:none \
@@ -57,16 +111,16 @@ function render_watermark {
 			-size "${wm_width}x${wm_height}" xc:none \
 			-fill "black" -stroke "black" \
 			-gravity "center" -pointsize "${text_size}" -font "${text_font}" \
-			-annotate "+0+0" "${text}" \
+			"${draw_text[@]}" \
 		\) \
-		-compose "Dst_Out" -composite -alpha "set" \
+		-compose "${composite_cut_out}" ${composite_verb} ${alpha_set} \
 		\( \
 			-size "${wm_width}x${wm_height}" xc:none \
 			-fill "${text_color}" -stroke "${text_color}" \
 			-gravity "center" -pointsize "${text_size}" -font "${text_font}" \
-			-annotate "+0+0" "${text}" \
+			"${draw_text[@]}" \
 		\) \
-		-compose "Dst_Over" -composite \
+		-compose "${composite_layer_under}" ${composite_verb} \
 		"${wm_file}"
 }
 
@@ -84,11 +138,11 @@ function watermark_file {
 	if ! (( silent )); then
 		printf -- "\e[37m%s\e[37m => \e[32m%s\e[37m\n" "${in##*/}" "${out}" >&2
 	fi
-	nice "$magick" \
+	conv \
 		\( \
 			\( "${in}" -resize "${working_size}" -unsharp "2x0.5+0.7+0" \) \
 			\( "${wm_file}" -geometry "${wm_offset}" -gravity "${wm_origin}" \) \
-			-compose "atop" -composite \
+			-compose "${composite_atop}" ${composite_verb} \
 		\) \
 		-resize "${output_size}" \
 		-quality "${output_quality}" \
