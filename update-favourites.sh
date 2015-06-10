@@ -164,7 +164,9 @@ function make_index { (
 	cd "${web_dir}"
 	printf -- '%s\n' \
 		'<!doctype html>' '<html>' '<head>' \
-		'<meta charset="utf-8">' '<title>Mark'\''s photos</title>' \
+		'<meta charset="utf-8">' \
+		'<title>Mark'\''s photos</title>' \
+		'<meta name="robots" content="none,noimageindex,noarchive,noindex,nofollow">' \
 		'<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">' \
 		'<style>' \
 		'* { box-sizing: border-box; }' \
@@ -176,22 +178,58 @@ function make_index { (
 		'h2 { font-size: 1.6rem; text-align: center; margin: 30px 0 20px; padding-top: 30px; border-top: 1px solid #888; }' \
 		'.hide { display: none; }' \
 		'.gallery { display: flex; flex-flow: row wrap; list-style-type: none; margin: 0 -10px; padding: 0; justify-content: center; align-items: center; } ' \
-		'.gallery-item { margin: 10px; border-radius: 15px; background: #444; transition: transform 200ms ease-in; transform-origin: center center; }' \
-		'.gallery-item:hover { transform: scale(1.1); }' \
-		'.gallery-item:active, .gallery-item:focus { transform: rotate(5deg); }' \
-		'.gallery-item a { margin: 10px; display: block; }' \
-		'.gallery-item img { border: 0; height: 220px; display: block; border-radius: 5px; }' \
+		'.gallery-item { margin: 10px; max-width: 28%; overflow: visible; }' \
+		'.gallery-item a { border-radius: 15px; padding: 10px; background: #444; display: block; overflow: hidden; max-width: 100%; transition: transform 200ms ease-in; transform-origin center center; }' \
+		'.gallery-item a:active, .gallery-item a:focus { transform: rotate(3deg); }' \
+		'.gallery-item a:hover { transform: scale(1.1); }' \
+		'.gallery-item img { border: 0; max-height: 280px; max-width: 100%; display: block; border-radius: 5px; }' \
+		'@media (max-width: 1680px) {' \
+		'.gallery-item img { max-height: 220px; }' \
+		'}' \
+		'@media (max-width: 1366px) {' \
+		'.gallery-item a { margin: 5px; padding: 5px; border-radius:10px; }' \
+		'.gallery-item img { max-height: 160px; }' \
+		'}' \
+		'@media (max-width: 960px) {' \
+		'.gallery-item { margin: 5px; max-width: 45%; }' \
+		'.gallery-item a { padding: 5px; border-radius: 10px; }' \
+		'.gallery-item img { max-height: 100px; }' \
+		'}' \
+		'#viewer { position: fixed; z-index: 1000; top: 0; left: 0; right: 0; bottom: 0; margin: 0; padding: 0; background-color: #444; background-position: center center; background-size: contain; background-repeat: no-repeat; }' \
 		'</style>' \
-		'</head>' '<body>' \
+		'<script>' \
+		'var lastViewed;' \
+		'function openImage(anchor, event) {' \
+		'for (var img=anchor.firstChild; img && img.nodeType!==1; img=img.nextSibling) ;' \
+		'var viewer=document.getElementById("viewer");' \
+		'if (!img || !viewer) return true;' \
+		'viewer.style.backgroundImage = "url(" + img.src + ")";' \
+		'viewer.classList.remove("hide");' \
+		'viewer.focus();' \
+		'if (event.preventDefault) event.preventDefault();' \
+		'lastViewed=anchor;' \
+		'return false;' \
+		'}' \
+		'function closeViewer(event) {' \
+		'var viewer=document.getElementById("viewer");' \
+		'if (!viewer) return;' \
+		'viewer.classList.add("hide");' \
+		'if (lastViewed) lastViewed.focus();' \
+		'lastViewed=undefined;' \
+		'if (event.preventDefault) event.preventDefault();' \
+		'}' \
+		'</script>' \
+		'</head>' \
+		'<body>' \
 		'<header>' \
 		'<h1>Mark'\''s travel photos</h1>' \
 		'<p>All content &copy; Mark K Cowan</p>' \
 		'<p>Some photos may belong to the previous or next album rather than the one they appear in, I occasionally forget to create new folders on my camera when arriving in a new place...</p>' \
 		'</header>' \
+		'<div id="viewer" class="hide" onclick="closeViewer();" onkeypress="closeViewer();" tabindex="0"></div>' \
 		'<main>' \
 		'<ul class="hide">' \
 		> "${index_html}"
-set -x
 
 	for name in *.jpg; do
 		local src="$(ls ../"${name%.*}".* | head -n1)"
@@ -212,15 +250,15 @@ set -x
 		while IFS=$'\t' read name group group_name group_id; do
 			if [ "${group}" != "${last_group}" ]; then
 				last_group="${group}"
-				printf -- '\t%s\n' \
+				printf -- '%s\n' \
 					'</ul>' \
 					"<h2>${group_name}</h2>" \
 					'<ul class="gallery">' \
 					>> "${index_html}"
 			fi
-			printf -- '\t%s\n' \
+			printf -- '%s\n' \
 				'<li class="gallery-item">' \
-				"<a href=\"${name}\">" \
+				"<a href=\"${name}\" onclick=\"return openImage(this, event);\">" \
 				"<img src=\"${name}\">" \
 				'</a>' \
 				'</li>' \
