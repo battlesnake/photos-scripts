@@ -190,7 +190,8 @@ function make_index { (
 		'<main>' \
 		'<ul class="hide">' \
 		> "${index_html}"
-	local last_group=''
+set -x
+
 	for name in *.jpg; do
 		local src="$(ls ../"${name%.*}".* | head -n1)"
 		if [ -z "${src}" ] || ! [ -e "${src}" ]; then
@@ -198,23 +199,33 @@ function make_index { (
 			continue
 		fi
 		src="$(realpath --relative-to="${self_path}" "$(readlink -f "${src}")")"
-		local group="$(echo "${src%%/*}" | perl -pe 's/^\d{3}\s+//g')"
-		if [ "${group}" != "${last_group}" ]; then
-			last_group="${group}"
+		local group="${src%%/*}"
+		local group_name="$(echo "${group}" | perl -pe 's/^\d{3}\s+//g')"
+		local group_id="$(echo "${group}" | grep -Po '^\d{3}')"
+		printf -- "%s\t%s\t%s\t%s\n" "${name}" "${group}" "${group_name}" "${group_id}"
+	done | \
+		sort -s -t$'\t' -k3,3 -d | \
+		sort -s -t$'\t' -k4,4 -n | \
+	(
+		local last_group=''
+		while IFS=$'\t' read name group group_name group_id; do
+			if [ "${group}" != "${last_group}" ]; then
+				last_group="${group}"
+				printf -- '\t%s\n' \
+					'</ul>' \
+					"<h2>${group_name}</h2>" \
+					'<ul class="gallery">' \
+					>> "${index_html}"
+			fi
 			printf -- '\t%s\n' \
-				'</ul>' \
-				"<h2>${group}</h2>" \
-				'<ul class="gallery">' \
+				'<li class="gallery-item">' \
+				"<a href=\"${name}\">" \
+				"<img src=\"${name}\">" \
+				'</a>' \
+				'</li>' \
 				>> "${index_html}"
-		fi
-		printf -- '\t%s\n' \
-			'<li class="gallery-item">' \
-			"<a href=\"${name}\">" \
-			"<img src=\"${name}\">" \
-			'</a>' \
-			'</li>' \
-			>> "${index_html}"
-	done
+		done
+	)
 	printf -- '%s\n' \
 		'</ul>' \
 		'</main>' \
