@@ -22,11 +22,14 @@ declare -i watermark_concurrency=4
 # Path to watermarking+downsizing script
 declare watermark_script="./watermark.sh"
 # Options for watermark script
-declare -a watermark_opts=( --output-size 1600x1600\> --output-quality 45 --silent )
+declare -a watermark_opts=( --output-size 1280x1280\> --output-quality 50 --silent )
 # Path to this script
-declare self="$0"
+declare self="$(realpath "$0")"
+declare self_path="$(dirname "${self}")"
+# Name of index HTML file
+declare index_html="index.html"
 
-cd "$(dirname "${self}")"
+cd "${self_path}"
 
 # Read FAVOURITES file and symlink referred files into OUTDIR folder
 function update {
@@ -155,11 +158,87 @@ function resize {
 	batch_parallel 'resize_one' "${watermark_concurrency}" 'get_web_target' "${fullsize_dir}"/*."${format}"
 }
 
+# Generate index HTML file
+function make_index { (
+	echo "Generating index"
+	cd "${web_dir}"
+	printf -- '%s\n' \
+		'<!doctype html>' '<html>' '<head>' \
+		'<meta charset="utf-8">' '<title>Mark'\''s photos</title>' \
+		'<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">' \
+		'<style>' \
+		'* { box-sizing: border-box; }' \
+		'html { margin: 0; padding: 0; font-size: 62.5%; }' \
+		'a { text-decoration: none; color: inherit; }' \
+		'body { font-family: sans-serif; background: #222; padding: 20px; color: #eee; font-size: 1.4rem; }' \
+		'p { margin: 10px 0; }' \
+		'h1 { font-size: 2.4rem; margin: 16px 0; }' \
+		'h2 { font-size: 1.6rem; text-align: center; margin: 30px 0 20px; padding-top: 30px; border-top: 1px solid #888; }' \
+		'.hide { display: none; }' \
+		'.gallery { display: flex; flex-flow: row wrap; list-style-type: none; margin: 0 -10px; padding: 0; justify-content: center; align-items: center; } ' \
+		'.gallery-item { margin: 10px; padding: 10px; border-radius: 10px; background: #444; transition: transform 200ms ease-in; transform-origin: center center; }' \
+		'.gallery-item:hover { transform: scale(1.1); }' \
+		'.gallery-item:active, .gallery-item:focus { transform: rotate(5deg); }' \
+		'.gallery-item img { border: 0; height: 220px; }' \
+		'</style>' \
+		'</head>' '<body>' \
+		'<header>' \
+		'<h1>Mark'\''s travel photos</h1>' \
+		'<p>All content &copy; Mark K Cowan</p>' \
+		'<p>Some photos may belong to the previous or next album rather than the one they appear in, I occasionally forget to create new folders on my camera when arriving in a new place...</p>' \
+		'</header>' \
+		'<main>' \
+		'<ul class="hide">' \
+		> "${index_html}"
+	local last_group=''
+	for name in *.jpg; do
+		local src="$(ls ../"${name%.*}".* | head -n1)"
+		if [ -z "${src}" ] || ! [ -e "${src}" ]; then
+			printf >&2 "Error: failed to find source for \"%s\"\n" "${src}"
+			continue
+		fi
+		src="$(realpath --relative-to="${self_path}" "$(readlink -f "${src}")")"
+		local group="$(echo "${src%%/*}" | perl -pe 's/^\d{3}\s+//g')"
+		if [ "${group}" != "${last_group}" ]; then
+			last_group="${group}"
+			printf -- '\t%s\n' \
+				'</ul>' \
+				"<h2>${group}</h2>" \
+				'<ul class="gallery">' \
+				>> "${index_html}"
+		fi
+		printf -- '\t%s\n' \
+			'<li class="gallery-item">' \
+			"<a href=\"${name}\">" \
+			"<img src=\"${name}\">" \
+			'</a>' \
+			'</li>' \
+			>> "${index_html}"
+	done
+	printf -- '%s\n' \
+		'</ul>' \
+		'</main>' \
+		'</body>' \
+		'</html>' \
+		>> "${index_html}"
+) }
+
+# Upload web images and index HTML to server
+function upload { (
+	echo >&2 "Uploading"
+	cd "${web_dir}"
+	rsync -avzlr --delete --progress \
+		*.${format} "${index_html}" \
+		hacksh@app.kuckian.co.uk:/var/www/hackology.co.uk/public_html/photos/
+) }
+
 # Entry point
 function main {
 	update
 	render
 	resize
+	make_index
+	upload
 }
 
 # Intercept callbacks from parallel batch mapper
