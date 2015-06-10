@@ -2,16 +2,23 @@
 
 set -euo pipefail
 
-declare self="$(realpath "$0")"
-declare watermark="$(dirname "${self}")/watermark.sh"
+# Used to use 0 (~lossless), but seems a bit pointless
+declare master_crf=8
 
+# Intermediate format (perhaps lossless JPEG would be more performant?)
 declare tmp_format="png"
+
+# Default config file name
+declare config_file="timelapse.cfg"
+
+# This script
+declare self="$(realpath "$0")"
+
+# Watermark script
+declare watermark="$(dirname "${self}")/watermark.sh"
 
 declare ffmpeg="eval nice /usr/bin/ffmpeg -loglevel warning -y </dev/null"
 declare magick
-
-declare config_file="timelapse.cfg"
-
 # Get name of imagemagick
 if which magick 2>/dev/null >/dev/null; then
 	magick=magick
@@ -197,7 +204,7 @@ function master {
 	local rate="$(getval "rates" | cut -f1 -d\ )"
 	local start_index="$(getval "start index")"
 	local src=( -r "${rate}" -start_number "${start_index}" -i "${tmpdir}/wm-%04d.${tmp_format}" )
-	local video_opts=( -c:v libx264 -crf 0 -pix_fmt yuv444p )
+	local video_opts=( -c:v libx264 -crf "${master_crf}" -pix_fmt yuv444p )
 	local proj_video_opts=( $(getval "extra master ffmpeg options" ) )
 	title "Rendering master video"
 	mkdir -p "${outdir}"
