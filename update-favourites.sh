@@ -176,10 +176,11 @@ function make_index { (
 		'h2 { font-size: 1.6rem; text-align: center; margin: 30px 0 20px; padding-top: 30px; border-top: 1px solid #888; }' \
 		'.hide { display: none; }' \
 		'.gallery { display: flex; flex-flow: row wrap; list-style-type: none; margin: 0 -10px; padding: 0; justify-content: center; align-items: center; } ' \
-		'.gallery-item { margin: 10px; padding: 10px; border-radius: 10px; background: #444; transition: transform 200ms ease-in; transform-origin: center center; }' \
+		'.gallery-item { margin: 10px; border-radius: 15px; background: #444; transition: transform 200ms ease-in; transform-origin: center center; }' \
 		'.gallery-item:hover { transform: scale(1.1); }' \
 		'.gallery-item:active, .gallery-item:focus { transform: rotate(5deg); }' \
-		'.gallery-item img { border: 0; height: 220px; }' \
+		'.gallery-item a { margin: 10px; display: block; }' \
+		'.gallery-item img { border: 0; height: 220px; display: block; border-radius: 5px; }' \
 		'</style>' \
 		'</head>' '<body>' \
 		'<header>' \
