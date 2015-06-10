@@ -117,7 +117,7 @@ function watermark_folder {
 # Parse a size in the form \d*x\d*
 function parse_size {
 	declare size="$1"
-	printf -- "%s\n" "$(echo "${size}" | cut -dx -f1)" "$(echo "${size}" | cut -dx -f2)"
+	printf -- "%s\n" "$(echo "${size}" | cut -dx -f1 | perl -pe 's/[^\d]+$//g')" "$(echo "${size}" | cut -dx -f2 | perl -pe 's/[^\d]+$//g')"
 }
 
 # Ensure that the working size is at least as big as the output size
