@@ -293,7 +293,7 @@ function help {
 		else
 			printf -- "  %s\n" "${line}"
 		fi
-	done < "$(dirname "$(realpath "$0")")/README.md"
+	done < "$(dirname "$(realpath "$0")")/TIMELAPSE.md"
 	exit 1
 }
 

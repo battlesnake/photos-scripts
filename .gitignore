@@ -11,5 +11,7 @@
 *.zip
 backup.sh
 !.fonts/*
+!000\ Print/*.sh
+!000\ Print/*.py
 .*.swp
 .*.swo

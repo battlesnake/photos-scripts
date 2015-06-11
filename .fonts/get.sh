@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-declare -a fonts=( "Open+Sans:300,400,500,600,700" )
+declare -a fonts=( "Open+Sans:300,400,600,700,400italic,600italic" "Raleway:400,500" )
 
 function get_font_css {
 	declare name="$*"
