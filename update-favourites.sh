@@ -76,7 +76,8 @@ function update {
 # Is target missing or older than source?
 function up_to_date {
 	local item=="$1" target="$2"
-	test -e "${target}" && ! test "${target}" -ot "${item}"
+	test -e "${target}" && ! test "${target}" -ot "${item}" && \
+		! ( test -e "${item}.pp3" && test "${target}" -ot "${item}.pp3" )
 }
 
 # Get name of fullsize render target (from source filename)
