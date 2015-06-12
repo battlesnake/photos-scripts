@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from os import listdir, environ
+from os import listdir, environ, fork, execv
 from os.path import isfile, join
 from PIL import Image
 from math import ceil, floor
@@ -227,35 +227,46 @@ def flatten(l):
 		else:
 			yield el
 
-def main():
-	srcdir = environ['annot_dir']
-	outfile = environ['output_image']
-	page_width = floor(float(environ['page_width']))
-
-	files = [ join(srcdir, name) for name in listdir(srcdir) if name.endswith('.jpg') and isfile(join(srcdir, name)) ]
-	files.sort()
-
-	page_height, tiles = place_images(page_width, files)
-
-	args = []
+def imagemagick(page_width, page_height, tiles, outfile):
+	args = ['/usr/bin/magick']
 	args.extend([
 		'-size', '{0}x{1}'.format(page_width, page_height),
 		'xc:white'])
 	for tile in tiles:
-		args.extend(['-page', '+{0}x{1}'.format(tile.x, tile.y), tile.file])
+		args.extend(['-page', '+{0}+{1}'.format(tile.x, tile.y), tile.file])
 	args.extend(['-layers', 'flatten', outfile])
 
+	print(args)
+
+	execv(args[0], args);
+
+def svg_test(page_width, page_height, tiles):
 	svg = []
 	svg.extend(['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {0} {1}">'.format(page_width, page_height)])
 	i=0
 	colors = ['rgba(' + rgb + ',0.3)' for rgb in ['255,128,128','255,255,128','128,255,128','128,255,255','128,128,255','255,128,255']]
 	for tile in tiles:
 		svg.extend(['<rect x="{0}" y="{1}" width="{2}" height="{3}" fill="{4}" stroke="black" stroke-width="20"/>'.format(tile.x, tile.y, tile.width, tile.height, colors[i % len(colors)])])
-		svg.extend(['<text x="{0}" y="{1}" fill="black" stroke="black" font-size="40">{2}</text>'.format(tile.x + 40, tile.y + 40, tile.file)])
+		svg.extend(['<text x="{0}" y="{1}" fill="black" stroke="black" font-size="50">{2}</text>'.format(tile.x + 100, tile.y + 100, tile.file)])
 		i=i+1
 	svg.extend(['</svg>'])
 
 	print(''.join(svg))
+
+def main():
+	srcdir = environ['annot_dir']
+	outfile = environ['output_image']
+	page_width = floor(float(environ['page_width']))
+	page_height = floor(float(environ['page_height']))
+
+	files = [ join(srcdir, name) for name in listdir(srcdir) if name.endswith('.jpg') and isfile(join(srcdir, name)) ]
+	files.sort()
+
+	page_height, tiles = place_images(page_width, files)
+
+	svg_test(page_width, page_height, tiles)
+
+#	imagemagick(page_width, page_height, tiles, outfile)
 
 def test():
 	phi = PHI(16)
@@ -272,6 +283,17 @@ def test():
 	for i in [2,4,6,8,12,16]:
 		print("0..{0} : max={1}".format(i, phi.cursor().try_read(i)))
 
+
+# TODO: replace try_read and friends with
+#   y = scan_subrange(offset, width)
+# Then we use moving windows to find (offset) such that (y) is
+# minimized:
+#   y = ẏ(offset_minẏ) using search (offset) to minimize ẏ(offset)
+# Breaks ordering a little, but improves column balancing.
+# Maybe we should also randomly permute consecutive pairs of photos
+# too just to shake up the large ones a bit
+
+# TODO: Split into separate pages also, use page_height envvar
 
 if __name__ == "__main__":
 #	test()

@@ -15,8 +15,9 @@ declare -r output_image="collage.jpg"
 declare -r description_font="$(dirname "$0")/../.fonts/Raleway-normal-500.ttf"
 declare -r location_font="$(dirname "$0")/../.fonts/Open_Sans-italic-600.ttf"
 
-# Page width
+# Page size (mm)
 declare -r page_width_mm=840
+declare -r page_height_mm=1188
 # Border (mm)
 declare -r border_mm=1
 # Output outer margin (mm)
@@ -25,7 +26,7 @@ declare -r margin_mm=5
 declare -r padding_mm=10
 # Width of different output sizes (mm)
 declare -r small_mm=120
-declare -r large_mm=200
+declare -r large_mm=240
 # Space between image and text (mm)
 declare -r img_text_spacing_mm=7
 # Description text height (mm)
@@ -38,8 +39,9 @@ declare -r location_size_mm=7
 # Image resolution (px/mm)
 declare -r image_resolution=$(echo '300/25.4' | bc -l)
 
-# Page width (px)
+# Page size (px)
 declare -r page_width=$(echo "${page_width_mm} * ${image_resolution}" | bc -l)
+declare -r page_height=$(echo "${page_height_mm} * ${image_resolution}" | bc -l)
 # Border (px)
 declare -r border=$(echo "${border_mm} * ${image_resolution}" | bc -l)
 # Margin (px)
@@ -76,4 +78,4 @@ function errout {
 }
 
 # Exports
-export annot_dir output_image page_width
+export annot_dir output_image page_width page_height

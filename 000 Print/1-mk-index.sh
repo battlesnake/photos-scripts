@@ -15,7 +15,9 @@ function index_size {
 			return 1
 		fi
 		printf -- "%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n" "${out_size}" "${dim[@]}" "${meta[@]}" "${img}"
+		errout 'x'
 	done
+	errout "\n"
 }
 
 for size in "${sizes[@]}"; do
