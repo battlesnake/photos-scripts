@@ -5,7 +5,7 @@ set -euo pipefail
 shopt -s nullglob
 
 # Output directory base
-declare out_base_dir="collection"
+declare out_base_dir="000 Collection"
 # Name of file listing favourites
 declare list="FAVOURITES"
 # Image format to render to
@@ -30,6 +30,8 @@ declare self_path="$(dirname "${self}")"
 declare index_html="index.html"
 
 cd "${self_path}"
+
+source "./private-vars.sh"
 
 # Read FAVOURITES file and symlink referred files into OUTDIR folder
 function update {
@@ -280,7 +282,7 @@ function upload { (
 	cd "${web_dir}"
 	rsync -avzlr --delete --progress \
 		*.${format} "${index_html}" \
-		hacksh@app.kuckian.co.uk:/var/www/hackology.co.uk/public_html/photos/
+		"${favourites_endpoint}"
 ) }
 
 # Entry point
