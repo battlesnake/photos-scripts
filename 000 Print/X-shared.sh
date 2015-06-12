@@ -1,5 +1,18 @@
 declare -r config='X-shared.sh'
 
+# Output paper size
+declare -r output_size="a1"
+
+# Calculate output  paper dimensions
+declare -ra output_dims=( $(
+	perl <(printf -- "%s;\n" \
+		"\$_ = '${output_size}'" \
+		'/^[aA](-?\d+)$/ or die "Unsupported paper size \"$_\"\n"' \
+		'my $power = $1 / 2' \
+		'print join(" ", map { $_ / 2**$power } qw(840 1188))'
+	)
+) )
+
 # Name of index file
 declare -r index="index"
 # Name of comments backup file
@@ -11,7 +24,7 @@ declare -ar exif=( -CreateDate -ShutterSpeed -Aperture -FocalLength )
 # Folder for annotated/resized images (intermediate)
 declare -r annot_dir="annotated-resized"
 # Output folder
-declare -r output_dir="collage"
+declare -r output_dir="collage-${output_size}"
 # Output image
 declare -r output_image="${output_dir}/%02d.jpg"
 # Layout image
@@ -29,8 +42,8 @@ declare -r date_color='#aaa'
 declare -r exif_color='#ccc'
 
 # Page size (mm)
-declare -r page_width_mm=840
-declare -r page_height_mm=1188
+declare -r page_width_mm="${output_dims[0]}"
+declare -r page_height_mm="${output_dims[1]}"
 # Border (mm)
 declare -r border_mm=1
 # Output outer margin (mm)
