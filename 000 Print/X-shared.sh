@@ -1,3 +1,5 @@
+declare -r config='X-shared.sh'
+
 # Name of index file
 declare -r index="index"
 # Name of comments backup file
@@ -5,15 +7,26 @@ declare -r comments_bak="comments.bak"
 # Names of sizes
 declare -ar sizes=( small large )
 # EXIF data to add to index
-declare -ar exif=( -CreateDate -ShutterSpeed -Aperture -ISO )
+declare -ar exif=( -CreateDate -ShutterSpeed -Aperture -FocalLength )
 # Folder for annotated/resized images (intermediate)
 declare -r annot_dir="annotated-resized"
+# Output folder
+declare -r output_dir="collage"
 # Output image
-declare -r output_image="collage.jpg"
+declare -r output_image="${output_dir}/%02d.jpg"
+# Layout image
+declare -r layout_image="${output_dir}/layout.svg"
 
 # Annotation fonts
-declare -r description_font="$(dirname "$0")/../.fonts/Raleway-normal-500.ttf"
-declare -r location_font="$(dirname "$0")/../.fonts/Open_Sans-italic-600.ttf"
+declare -r description_font="$(dirname -- "$0")/../.fonts/Raleway-normal-500.ttf"
+declare -r location_font="$(dirname -- "$0")/../.fonts/Open_Sans-italic-600.ttf"
+declare -r date_font="$(dirname -- "$0")/../.fonts/Open_Sans-italic-600.ttf"
+declare -r exif_font="$(dirname -- "$0")/../.fonts/Open_Sans-normal-400.ttf"
+
+# Date color
+declare -r date_color='#aaa'
+# Exif color
+declare -r exif_color='#ccc'
 
 # Page size (mm)
 declare -r page_width_mm=840
@@ -21,48 +34,63 @@ declare -r page_height_mm=1188
 # Border (mm)
 declare -r border_mm=1
 # Output outer margin (mm)
-declare -r margin_mm=5
+declare -r margin_mm=2.5
 # Image padding (mm)
-declare -r padding_mm=10
+declare -r padding_mm=5
 # Width of different output sizes (mm)
-declare -r small_mm=120
-declare -r large_mm=240
+declare -r small_mm=140
+declare -r large_mm=210
 # Space between image and text (mm)
-declare -r img_text_spacing_mm=7
+declare -r img_text_spacing_mm=4
 # Description text height (mm)
-declare -r description_size_mm=10
+declare -r description_size_mm=9
 # Spacing between text blocks (mm)
-declare -r text_block_spacing_mm=5
+declare -r text_block_spacing_mm=3
 # Location text height (mm)
-declare -r location_size_mm=7
+declare -r location_size_mm=6
+# Date text height (mm)
+declare -r date_size_mm=5
+# Exif text height (mm)
+declare -r exif_size_mm=4
+
+# Preserve order of images in layout
+declare -r preserve_order=no
+
+# Calculate and truncate to integer
+function calc {
+	printf -- "(%s) / 1\n" "$*" | bc
+}
 
 # Image resolution (px/mm)
-declare -r image_resolution=$(echo '300/25.4' | bc -l)
+declare -r image_resolution=$(calc '300/25.4')
 
 # Page size (px)
-declare -r page_width=$(echo "${page_width_mm} * ${image_resolution}" | bc -l)
-declare -r page_height=$(echo "${page_height_mm} * ${image_resolution}" | bc -l)
+declare -r page_width=$(calc "${page_width_mm} * ${image_resolution}")
+declare -r page_height=$(calc "${page_height_mm} * ${image_resolution}")
 # Border (px)
-declare -r border=$(echo "${border_mm} * ${image_resolution}" | bc -l)
+declare -r border=$(calc "${border_mm} * ${image_resolution}")
 # Margin (px)
-declare -r margin=$(echo "${margin_mm} * ${image_resolution}" | bc -l)
+declare -r margin=$(calc "${margin_mm} * ${image_resolution}")
 # Image padding (px)
-declare -r padding=$(echo "${padding_mm} * ${image_resolution}" | bc -l)
+declare -r padding=$(calc "${padding_mm} * ${image_resolution}")
 # Space between image and text (px)
-declare -r img_text_spacing=$(echo "${img_text_spacing_mm} * ${image_resolution}" | bc -l)
+declare -r img_text_spacing=$(calc "${img_text_spacing_mm} * ${image_resolution}")
 # Width of different output sizes (px)
-declare -r small=$(echo "${small_mm} * ${image_resolution}" | bc -l)
-declare -r large=$(echo "${large_mm} * ${image_resolution}" | bc -l)
+declare -r small=$(calc "${small_mm} * ${image_resolution}")
+declare -r large=$(calc "${large_mm} * ${image_resolution}")
 # Width of different image sizes (px)
-declare -r small_img=$(echo "${small} - 2 * (${padding} + ${border})" | bc -l)
-declare -r large_img=$(echo "${large} - 2 * (${padding} + ${border})" | bc -l)
+declare -r small_img=$(calc "${small} - 2 * (${padding} + ${border})")
+declare -r large_img=$(calc "${large} - 2 * (${padding} + ${border})")
 # Description height (px)
-declare -r description_size=$(echo "${description_size_mm} * ${image_resolution}" | bc -l)
+declare -r description_size=$(calc "${description_size_mm} * ${image_resolution}")
 # Description height (px)
-declare -r location_size=$(echo "${location_size_mm} * ${image_resolution}" | bc -l)
+declare -r location_size=$(calc "${location_size_mm} * ${image_resolution}")
 # Spacing between text blocks (px)
-declare -r text_block_spacing=$(echo "${text_block_spacing_mm} * ${image_resolution}" | bc -l)
-
+declare -r text_block_spacing=$(calc "${text_block_spacing_mm} * ${image_resolution}")
+# Date height (px)
+declare -r date_size=$(calc "${date_size_mm} * ${image_resolution}")
+# Exif height (px)
+declare -r exif_size=$(calc "${exif_size_mm} * ${image_resolution}")
 
 function exif_cmd {
 	exiftool -veryShort -tab -q  -dateFormat '%s' "$@"
@@ -76,6 +104,3 @@ function up_to_date {
 function errout {
 	printf >&2 -- "$@"
 }
-
-# Exports
-export annot_dir output_image page_width page_height

@@ -47,7 +47,7 @@ function set_comments {
 	(
 		exec 3<"${index}"
 
-		while IFS=$'\t' read -u 3 size width height date shutter aperature iso filename; do
+		while IFS=$'\t' read -u 3 size width height date shutter aperature focallength filename; do
 			if is_filtered_out "${filename}"; then
 				continue
 			fi
@@ -67,7 +67,7 @@ function dump_comments {
 	(
 		exec 3<"${index}"
 
-		while IFS=$'\t' read -u 3 size width height date shutter aperature iso filename; do
+		while IFS=$'\t' read -u 3 size width height date shutter aperature focallength filename; do
 			if is_filtered_out "${filename}"; then
 				continue
 			fi
