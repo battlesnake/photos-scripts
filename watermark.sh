@@ -7,21 +7,31 @@ declare output_quality="55"
 declare output_size="900x"
 
 # Subdirectory to output to (used by watermark_folder)
-declare batch_out="marked"
+declare -r batch_out="marked"
 
 # Watermark configuration
-declare text="hackology.co.uk"
-declare text_font="$(dirname "$0")/.fonts/Open_Sans-normal-600.ttf"
-declare text_size="55"
-declare text_color="#0004"
-declare bg_color="white"
+declare -r text="hackology.co.uk"
+declare -r text_font="$(dirname "$0")/.fonts/Open_Sans-normal-600.ttf"
+declare -r text_size="55"
+declare -r text_color="#0004"
+declare -r bg_color="white"
 
-declare wm_file="/tmp/wm.png"
-declare wm_width="500"
-declare wm_height="100"
-declare wm_radius="50"
-declare wm_offset="+75+0"
-declare wm_origin="southeast"
+declare -r wm_file="/tmp/wm.png"
+declare -r wm_width="500"
+declare -r wm_height="100"
+declare -r wm_radius="50"
+declare -r wm_offset="+75+0"
+declare -r wm_origin="southeast"
+
+declare -ar wm_extra=(
+	-strip
+	-interlace Plane
+	-gaussian-blur 0.8x5
+	-unsharp 2x0.5+0.7+0
+	-sampling-factor 4:2:0
+)
+
+declare -r comment='© Mark K Cowan, mark@battlesnake.co.uk'
 
 # If output size is set via command line, working size will be enlarged if needed
 declare working_size="2400x"
@@ -67,6 +77,7 @@ function render_watermark {
 			-annotate "+0+0" "${text}" \
 		\) \
 		-compose "Dst_Over" -composite \
+		-set comment "${comment}" \
 		"${wm_file}"
 }
 
@@ -86,7 +97,7 @@ function watermark_file {
 	fi
 	nice "$magick" \
 		\( \
-			\( "${in}" -resize "${working_size}" -unsharp "2x0.5+0.7+0" \) \
+			\( "${in}" -resize "${working_size}" "${wm_extra[@]}" \) \
 			\( "${wm_file}" -geometry "${wm_offset}" -gravity "${wm_origin}" \) \
 			-compose "atop" -composite \
 		\) \

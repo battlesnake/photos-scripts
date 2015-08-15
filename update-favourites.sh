@@ -22,7 +22,7 @@ declare -i watermark_concurrency=4
 # Path to watermarking+downsizing script
 declare watermark_script="./watermark.sh"
 # Options for watermark script
-declare -a watermark_opts=( --output-size 1280x1280\> --output-quality 50 --silent )
+declare -a watermark_opts=( --output-size 1280x1280\> --output-quality 47 --silent )
 # Path to this script
 declare self="$(realpath "$0")"
 declare self_path="$(dirname "${self}")"
@@ -33,6 +33,10 @@ cd "${self_path}"
 
 source "./private-vars.sh"
 
+function skip_line {
+	printf -- "%s\n" "$*" | grep -qE '^#|^\s*$'
+}
+
 # Read FAVOURITES file and symlink referred files into OUTDIR folder
 function update {
 	mkdir -p -- "${out_base_dir}"
@@ -40,7 +44,7 @@ function update {
 	local -i errs=0
 
 	while read item; do
-		if printf -- "%s" "${item}" | grep -qE '^#'; then
+		if skip_line "${item}"; then
 			continue
 		fi
 		if ! [ -e "${item}" ]; then
@@ -57,15 +61,18 @@ function update {
 	errs=0
 
 	while read item; do
-		if printf -- "%s" "${item}" | grep -qE '^#'; then
+		if skip_line "${item}"; then
 			continue
 		fi
 		local album="${item%% *}"
 		local file="${item##*/}"
 		local target="${out_base_dir}/${album}-${file}"
-		if ! [ -e "${target}" ] && ! ln -sr "${item}" "${target}"; then
+		if [ -h "${target}" -a ! -e "${target}" ]; then
+			rm -- "${target}"
+		fi
+		if [ ! -e "${target}" ] && ! ln -sr "${item}" "${target}"; then
 			errs=errs+1
-			printf -- 'Failed to link "%s" to "%s" "%s"\n' "${item}" "${target}"
+			printf -- 'Failed to link "%s" to "%s"\n' "${item}" "${target}"
 		fi
 	done < "${list}"
 
@@ -225,9 +232,12 @@ function make_index { (
 		'</head>' \
 		'<body>' \
 		'<header>' \
-		'<h1>Mark'\''s travel photos</h1>' \
+		'<h1>Mark'\''s travel photos <small>Low-quality web versions</small></h1>' \
 		'<p>All content &copy; Mark K Cowan</p>' \
-		'<p>Some photos may belong to the previous or next album rather than the one they appear in, I occasionally forget to create new folders on my camera when arriving in a new place...</p>' \
+		'<p>Some photos may belong to the previous or next album rather than the
+			one they appear in, I occasionally forget to create new folders on
+			my camera when arriving in a new place...
+			</p>' \
 		'</header>' \
 		'<div id="viewer" class="hide" onclick="closeViewer();" onkeypress="closeViewer();" tabindex="0"></div>' \
 		'<main>' \
@@ -271,6 +281,15 @@ function make_index { (
 	printf -- '%s\n' \
 		'</ul>' \
 		'</main>' \
+		'<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">' \
+		'<link rel="stylesheet" href="http://hackology.co.uk/image-viewer/image-viewer.css">' \
+		'<script src="http://hackology.co.uk/image-viewer/bower_components/jquery/jquery.js"></script>' \
+		'<script src="http://hackology.co.uk/image-viewer/bower_components/jquery-mobile-bower/js/jquery.mobile-1.4.5.js"></script>' \
+		'<script src="http://hackology.co.uk/image-viewer/image-viewer.js"></script>' \
+		'<script>' \
+		'$(".gallery-item a").removeAttr("onclick href target").prop("onclick", null).off("click");' \
+		'$(".gallery-item img").imageViewer();' \
+		'</script>' \
 		'</body>' \
 		'</html>' \
 		>> "${index_html}"
@@ -295,13 +314,27 @@ function main {
 }
 
 # Intercept callbacks from parallel batch mapper
-if [ "${1:-}" == '--batch-callback' ]; then
+case "${1:-}" in
+--batch-callback)
 	shift
 	if [ "${TEST:-}" ]; then
 		echo batch_callback "$@"
 	else
 		batch_callback "$@"
 	fi
-else
+	;;
+--command)
+	shift
+	while (( $# )); do
+		declare cmd="$1"
+		shift
+		"${cmd}"
+	done
+	;;
+'')
 	main
-fi
+	;;
+*)
+	printf >&2 -- "Unknown command: %s\n" "$1"
+	;;
+esac
