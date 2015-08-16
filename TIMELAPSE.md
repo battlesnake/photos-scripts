@@ -11,6 +11,7 @@
  * render - transcode the final videos from the master
  * rmtmp - remove temporary folder
  * full-reset - remove temporary folder and output folder
+ * all - runs "configure frames master render rmtmp"
 
 Only 'configure' and 'paths' require user interaction.
 

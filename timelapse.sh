@@ -153,7 +153,8 @@ function processframes {
 	else
 		title "Processing ${count} frames *.${format}"
 		printf -- "%s\0" "${frames[@]}" | \
-			xargs -0 -n1 -P3 -I{} "${self}" processframe {}
+			xargs -0 -n1 -P3 -I{} "${self}" processframe {} | \
+				pv -pes "${#frames[@]}" -B 1 -i 0.5 > /dev/null
 		printf -- '\n'
 	fi
 }
@@ -314,6 +315,9 @@ while (( $# )); do
 	param="$1"
 	shift
 	case "${param}" in
+	all)
+		"$0" configure frames master render rmtmp
+		;;
 	using) echo '"using" must be first parameter if specified' >&2; exit 1;;
 	configure) ;&
 	config) config;;
