@@ -169,81 +169,14 @@ function resize {
 }
 
 # Generate index HTML file
-function make_index { (
+function make_index {(
 	echo "Generating index"
-	cd "${web_dir}"
-	printf -- '%s\n' \
-		'<!doctype html>' '<html>' '<head>' \
-		'<meta charset="utf-8">' \
-		'<title>Mark'\''s photos</title>' \
-		'<meta name="robots" content="none,noimageindex,noarchive,noindex,nofollow">' \
-		'<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">' \
-		'<style>' \
-		'* { box-sizing: border-box; }' \
-		'html { margin: 0; padding: 0; font-size: 62.5%; }' \
-		'a { text-decoration: none; color: inherit; }' \
-		'body { font-family: sans-serif; background: #222; padding: 20px; color: #eee; font-size: 1.4rem; }' \
-		'p { margin: 10px 0; }' \
-		'h1 { font-size: 2.4rem; margin: 16px 0; }' \
-		'h2 { font-size: 1.6rem; text-align: center; margin: 30px 0 20px; padding-top: 30px; border-top: 1px solid #888; }' \
-		'.hide { display: none; }' \
-		'.gallery { display: flex; flex-flow: row wrap; list-style-type: none; margin: 0 -10px; padding: 0; justify-content: center; align-items: center; } ' \
-		'.gallery-item { margin: 10px; max-width: 28%; overflow: visible; }' \
-		'.gallery-item a { border-radius: 15px; padding: 10px; background: #444; display: block; overflow: hidden; max-width: 100%; transition: transform 200ms ease-in; transform-origin center center; }' \
-		'.gallery-item a:active, .gallery-item a:focus { transform: rotate(3deg); }' \
-		'.gallery-item a:hover { transform: scale(1.1); }' \
-		'.gallery-item img { border: 0; max-height: 280px; max-width: 100%; display: block; border-radius: 5px; }' \
-		'@media (max-width: 1680px) {' \
-		'.gallery-item img { max-height: 220px; }' \
-		'}' \
-		'@media (max-width: 1366px) {' \
-		'.gallery-item a { margin: 5px; padding: 5px; border-radius:10px; }' \
-		'.gallery-item img { max-height: 160px; }' \
-		'}' \
-		'@media (max-width: 960px) {' \
-		'.gallery-item { margin: 5px; max-width: 45%; }' \
-		'.gallery-item a { padding: 5px; border-radius: 10px; }' \
-		'.gallery-item img { max-height: 100px; }' \
-		'}' \
-		'#viewer { position: fixed; z-index: 1000; top: 0; left: 0; right: 0; bottom: 0; margin: 0; padding: 0; background-color: #444; background-position: center center; background-size: contain; background-repeat: no-repeat; }' \
-		'</style>' \
-		'<script>' \
-		'var lastViewed;' \
-		'function openImage(anchor, event) {' \
-		'for (var img=anchor.firstChild; img && img.nodeType!==1; img=img.nextSibling) ;' \
-		'var viewer=document.getElementById("viewer");' \
-		'if (!img || !viewer) return true;' \
-		'viewer.style.backgroundImage = "url(" + img.src + ")";' \
-		'viewer.classList.remove("hide");' \
-		'viewer.focus();' \
-		'if (event.preventDefault) event.preventDefault();' \
-		'lastViewed=anchor;' \
-		'return false;' \
-		'}' \
-		'function closeViewer(event) {' \
-		'var viewer=document.getElementById("viewer");' \
-		'if (!viewer) return;' \
-		'viewer.classList.add("hide");' \
-		'if (lastViewed) lastViewed.focus();' \
-		'lastViewed=undefined;' \
-		'if (event.preventDefault) event.preventDefault();' \
-		'}' \
-		'</script>' \
-		'</head>' \
-		'<body>' \
-		'<header>' \
-		'<h1>Mark'\''s travel photos <small>Low-quality web versions</small></h1>' \
-		'<p>All content &copy; Mark K Cowan</p>' \
-		'<p>Some photos may belong to the previous or next album rather than the
-			one they appear in, I occasionally forget to create new folders on
-			my camera when arriving in a new place...
-			</p>' \
-		'</header>' \
-		'<div id="viewer" class="hide" onclick="closeViewer();" onkeypress="closeViewer();" tabindex="0"></div>' \
-		'<main>' \
-		'<ul class="hide">' \
-		> "${index_html}"
 
+	cd "${web_dir}"
+
+	# Build database
+	local -r tmpfile="$(mktemp)"
+	local -i idx=0
 	for name in *.jpg; do
 		local src="$(ls ../"${name%.*}".* | head -n1)"
 		if [ -z "${src}" ] || ! [ -e "${src}" ]; then
@@ -254,46 +187,180 @@ function make_index { (
 		local group="${src%%/*}"
 		local group_name="$(echo "${group}" | perl -pe 's/^\d{3}\s+//g')"
 		local group_id="$(echo "${group}" | grep -Po '^\d{3}')"
-		printf -- "%s\t%s\t%s\t%s\n" "${name}" "${group}" "${group_name}" "${group_id}"
-	done | \
-		sort -s -t$'\t' -k3,3 -d | \
-		sort -s -t$'\t' -k4,4 -n | \
+		printf -- "%s\t%s\t%s\t%s\t%d\n" "${name}" "${group}" "${group_name}" "${group_id}" "$((++idx))"
+	done > "${tmpfile}"
+
 	(
+		# Header
+		printf -- '%s\n' \
+			'<!doctype html>' '<html>' '<head>' \
+			'<meta charset="utf-8">' \
+			'<title>Mark'\''s photos</title>' \
+			'<meta name="robots" content="none,noimageindex,noarchive,noindex,nofollow">' \
+			'<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">' \
+			'<style>' \
+			'* { box-sizing: border-box; }' \
+			'html { margin: 0; padding: 0; font-size: 62.5%; }' \
+			'a { text-decoration: none; color: inherit; }' \
+			'body { font-family: sans-serif; background: #222; padding: 20px; color: #eee; font-size: 1.4rem; }' \
+			'p { margin: 10px 0; }' \
+			'h1 { font-size: 2.4rem; margin: 16px 0; }' \
+			'h2 { font-size: 1.6rem; text-align: center; margin: 30px 0 20px; padding-top: 30px; border-top: 1px solid #888; }' \
+			'.hide { display: none; }' \
+			'.gallery { display: flex; flex-flow: row wrap; list-style-type: none; margin: 0 -10px; padding: 0; justify-content: center; align-items: center; } ' \
+			'.gallery-item { margin: 10px; max-width: 28%; overflow: visible; }' \
+			'.gallery-item a { border-radius: 15px; padding: 10px; background: #444; display: block; overflow: hidden; max-width: 100%; transition: transform 200ms ease-in; transform-origin center center; }' \
+			'.gallery-item a:active, .gallery-item a:focus { transform: rotate(3deg); }' \
+			'.gallery-item a:hover { transform: scale(1.1); }' \
+			'.gallery-item img { border: 0; max-height: 280px; max-width: 100%; display: block; border-radius: 5px; }' \
+			'@media (max-width: 1680px) {' \
+			'.gallery-item img { max-height: 220px; }' \
+			'}' \
+			'@media (max-width: 1366px) {' \
+			'.gallery-item a { margin: 5px; padding: 5px; border-radius:10px; }' \
+			'.gallery-item img { max-height: 160px; }' \
+			'}' \
+			'@media (max-width: 960px) {' \
+			'.gallery-item { margin: 5px; max-width: 45%; }' \
+			'.gallery-item a { padding: 5px; border-radius: 10px; }' \
+			'.gallery-item img { max-height: 100px; }' \
+			'}' \
+			'#viewer { position: fixed; z-index: 1000; top: 0; left: 0; right: 0; bottom: 0; margin: 0; padding: 0; background-color: #444; background-position: center center; background-size: contain; background-repeat: no-repeat; }' \
+			'</style>' \
+			'<script>' \
+			'var lastViewed;' \
+			'function openImage(anchor, event) {' \
+			'for (var img=anchor.firstChild; img && img.nodeType!==1; img=img.nextSibling) ;' \
+			'var viewer=document.getElementById("viewer");' \
+			'if (!img || !viewer) return true;' \
+			'viewer.style.backgroundImage = "url(" + img.src + ")";' \
+			'viewer.classList.remove("hide");' \
+			'viewer.focus();' \
+			'if (event.preventDefault) event.preventDefault();' \
+			'lastViewed=anchor;' \
+			'return false;' \
+			'}' \
+			'function closeViewer(event) {' \
+			'var viewer=document.getElementById("viewer");' \
+			'if (!viewer) return;' \
+			'viewer.classList.add("hide");' \
+			'if (lastViewed) lastViewed.focus();' \
+			'lastViewed=undefined;' \
+			'if (event.preventDefault) event.preventDefault();' \
+			'}' \
+			'</script>' \
+			'</head>' \
+			'<body>' \
+			'<header>' \
+			'<h1>Mark'\''s travel photos</h1><small>Low-quality web versions</small>' \
+			'<p>All content &copy; Mark K Cowan</p>' \
+			'<p>Some photos may belong to the previous or next album rather than the
+				one they appear in, I occasionally forget to create new folders on
+				my camera when arriving in a new place...
+				</p>' \
+			'</header>' \
+			'<div id="viewer" class="hide" onclick="closeViewer();" onkeypress="closeViewer();" tabindex="0"></div>'
+
+cat <<'EOF'
+<style>
+.menu {
+	list-style-type: none;
+	display: flex;
+	padding: 0em 2em 1em;
+	flex-flow: row wrap;
+	justify-content: center;
+	align-items: stretch;
+}
+.menu-item {
+	padding: 0.2em 0.4em 0.2em;
+	border: 2px solid #222;
+	background: #444;
+	color: #ccc;
+}
+.menu-item:hover {
+	background: #666;
+	color: #fff;
+}
+</style>
+<script>
+function gotoAlbum(id) {
+	var el = $('#album_' + id);
+	if (!el) {
+		return;
+	}
+	el[0].scrollIntoView();
+}
+function gotoTop() {
+	scrollTo(0, 0);
+}
+</script>
+EOF
+
+		# Write menu
+		printf -- '%s\n' \
+			'<nav class="menu-container">' \
+			'<h2>A-Z index</h2>' \
+			'<ul class="menu">'
 		local last_group=''
-		while IFS=$'\t' read name group group_name group_id; do
+		sort -k 3,3 < "${tmpfile}" | \
+		while IFS=$'\t' read name group group_name group_id idx; do
+			if [ "${group}" == "${last_group}" ]; then
+				continue
+			fi
+			last_group="${group}"
+			printf -- '%s\n' \
+				"<li class=\"menu-item\" onclick=\"gotoAlbum(${idx}); event.preventDefault(); return false;\">" \
+				"<a href=\""\#"album${idx}\">" \
+				"${group_name}" \
+				'</a>' \
+				'</li>'
+		done
+		printf -- '%s\n' \
+			'</ul>' \
+			'</nav>'
+
+		# Write image list
+		printf -- '%s\n' \
+			'<main>' \
+			'<ul class="hide">'
+		local last_group=''
+		sort -s -t$'\t' -k4,4nr -k3,3d < "${tmpfile}" | \
+		while IFS=$'\t' read name group group_name group_id idx; do
 			if [ "${group}" != "${last_group}" ]; then
 				last_group="${group}"
 				printf -- '%s\n' \
 					'</ul>' \
-					"<h2>${group_name}</h2>" \
-					'<ul class="gallery">' \
-					>> "${index_html}"
+					"<h2 id=\"album_${idx}\" onclick=\"gotoTop();\">" \
+					"${group_name}" \
+					"<a href=\"album${idx}\"></a>" \
+					"</h2>" \
+					'<ul class="gallery">'
 			fi
 			printf -- '%s\n' \
 				'<li class="gallery-item">' \
 				"<a href=\"${name}\" onclick=\"return openImage(this, event);\">" \
 				"<img src=\"${name}\">" \
 				'</a>' \
-				'</li>' \
-				>> "${index_html}"
+				'</li>'
 		done
-	)
-	printf -- '%s\n' \
-		'</ul>' \
-		'</main>' \
-		'<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">' \
-		'<link rel="stylesheet" href="http://hackology.co.uk/image-viewer/image-viewer.css">' \
-		'<script src="http://hackology.co.uk/image-viewer/bower_components/jquery/jquery.js"></script>' \
-		'<script src="http://hackology.co.uk/image-viewer/bower_components/jquery-mobile-bower/js/jquery.mobile-1.4.5.js"></script>' \
-		'<script src="http://hackology.co.uk/image-viewer/image-viewer.js"></script>' \
-		'<script>' \
-		'$(".gallery-item a").removeAttr("onclick href target").prop("onclick", null).off("click");' \
-		'$(".gallery-item img").imageViewer();' \
-		'</script>' \
-		'</body>' \
-		'</html>' \
-		>> "${index_html}"
-) }
+		printf -- '%s\n' \
+			'</ul>' \
+			'</main>'
+		# Footer
+		printf -- '%s\n' \
+			'<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css">' \
+			'<link rel="stylesheet" href="http://hackology.co.uk/image-viewer/image-viewer.css">' \
+			'<script src="http://hackology.co.uk/image-viewer/bower_components/jquery/jquery.js"></script>' \
+			'<script src="http://hackology.co.uk/image-viewer/bower_components/jquery-mobile-bower/js/jquery.mobile-1.4.5.js"></script>' \
+			'<script src="http://hackology.co.uk/image-viewer/image-viewer.js"></script>' \
+			'<script>' \
+			'$(".gallery-item a").removeAttr("onclick href target").prop("onclick", null).off("click");' \
+			'$(".gallery-item img").imageViewer();' \
+			'</script>' \
+			'</body>' \
+			'</html>'
+	) > "${index_html}"
+)}
 
 # Upload web images and index HTML to server
 function upload { (
