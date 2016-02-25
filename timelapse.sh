@@ -40,6 +40,7 @@ function config {
 	readvalue "Project name" "validate_name" "project name"
 	readvalue "Frame format (e.g. bmp/jpg/png)" "validate_format" "format"
 	readvalue "First frame index" "validate_integer" "start index"
+	readvalue "File number digits" "validate_integer" "file number digits"
 	readvalue "Crop gravity (\"squash\" for no crop)" "true" "crop gravity"
 	readvalues "Target video frame-rate(s)" "validate_number" "rates"
 	readvalues "Target video resolution(s)" "validate_size" "sizes"
@@ -99,6 +100,7 @@ function getval_default {
 	case "${key}" in
 	"temporary folder") echo "tmp";;
 	"output folder") echo "out";;
+	"file number digits") echo "4";;
 	esac
 }
 
@@ -163,7 +165,7 @@ function processframes {
 function processframe {
 	local frame="$1"
 	local tmpdir="$(getval "temporary folder")"
-	local out="$(echo "$1" | grep -Po "\d{4}" | head -n 1).${tmp_format}"
+	local out="$(echo "$1" | grep -Po "\d{4,}" | head -n 1).${tmp_format}"
 	local size="$(getval "sizes" | cut -f1 -d\ )"
 	local width="$(echo "$size" | cut -f1 -dx)"
 	local height="$(echo "$size" | cut -f2 -dx)"
@@ -204,7 +206,8 @@ function master {
 	local tmpdir="$(getval "temporary folder")"
 	local rate="$(getval "rates" | cut -f1 -d\ )"
 	local start_index="$(getval "start index")"
-	local src=( -r "${rate}" -start_number "${start_index}" -i "${tmpdir}/wm-%04d.${tmp_format}" )
+	local digits="$(getval "file number digits")"
+	local src=( -r "${rate}" -start_number "${start_index}" -i "${tmpdir}/wm-%0${digits}d.${tmp_format}" )
 	local video_opts=( -c:v libx264 -crf "${master_crf}" -pix_fmt yuv444p )
 	local proj_video_opts=( $(getval "extra master ffmpeg options" ) )
 	title "Rendering master video"

@@ -263,6 +263,9 @@ function make_index {(
 
 cat <<'EOF'
 <style>
+.ui-loader {
+	display: none !important;
+}
 .menu {
 	list-style-type: none;
 	display: flex;
