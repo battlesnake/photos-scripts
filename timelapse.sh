@@ -97,11 +97,19 @@ function getval {
 
 function getval_default {
 	local key="$1"
-	case "${key}" in
-	"temporary folder") echo "tmp";;
-	"output folder") echo "out";;
-	"file number digits") echo "4";;
-	esac
+	if [ -z "${disable_watermark:-}" ]; then
+		case "${key}" in
+		"temporary folder") echo "tmp";;
+		"output folder") echo "out";;
+		"file number digits") echo "4";;
+		esac
+	else
+		case "${key}" in
+		"temporary folder") echo "nowm-tmp";;
+		"output folder") echo "nowm-out";;
+		"file number digits") echo "4";;
+		esac
+	fi
 }
 
 function checkall {
@@ -155,7 +163,7 @@ function processframes {
 	else
 		title "Processing ${count} frames *.${format}"
 		printf -- "%s\0" "${frames[@]}" | \
-			xargs -0 -n1 -P3 -I{} "${self}" processframe {} | \
+			xargs -0 -n1 -P"${parallelism:-3}" -I{} "${self}" processframe {} | \
 				pv -pes "${#frames[@]}" -B 1 -i 0.5 > /dev/null
 		printf -- '\n'
 	fi
@@ -192,11 +200,16 @@ function processframe {
 	nice "${magick}" "${frame}" \
 		"${fit[@]}" \
 		"${cropped}"
-	"${watermark}" --silent \
-		--output-quality 100 \
-		--output-size "${size}" \
-		"${cropped}" to "${marked}"
-	rm -- "${cropped}"
+	if [ -z "${disable_watermark:-}" ]; then
+		"${watermark}" --silent \
+			--output-quality 100 \
+			--output-size "${size}" \
+			"${cropped}" to "${marked}"
+		rm -- "${cropped}"
+	else
+		mv -- "${cropped}" "${marked}"
+	fi
+	# Write one byte, used by pv in parent process to draw progress bar
 	printf -- '.'
 }
 

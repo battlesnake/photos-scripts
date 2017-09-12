@@ -1,0 +1,1 @@
+rsync --progress --append-verify -sRavzle 'ssh -p 3322' root@node.kuckian.co.uk:/mnt/butter/photos/./{0..9}* ~/photos/
