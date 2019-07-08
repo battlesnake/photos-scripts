@@ -287,7 +287,7 @@ cat <<'EOF'
 </style>
 <script>
 function gotoAlbum(id) {
-	var el = $('#album_' + id);
+	var el = $('#album' + id);
 	if (!el) {
 		return;
 	}
@@ -333,7 +333,7 @@ EOF
 				last_group="${group}"
 				printf -- '%s\n' \
 					'</ul>' \
-					"<h2 id=\"album_${idx}\" onclick=\"gotoTop();\">" \
+					"<h2 id=\"album${idx}\" onclick=\"gotoTop();\">" \
 					"${group_name}" \
 					"<a href=\"album${idx}\"></a>" \
 					"</h2>" \
