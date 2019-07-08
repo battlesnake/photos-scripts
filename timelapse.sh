@@ -5,8 +5,9 @@ set -euo pipefail
 # Used to use 0 (~lossless), but seems a bit pointless
 declare master_crf=8
 
-# Intermediate format (perhaps lossless JPEG would be more performant?)
-declare tmp_format="png"
+# Intermediate format (perhaps lossless JPEG would be more performant? and also smaller!)
+declare tmp_format="jpg"
+declare -a tmp_options=( -quality 100 )
 
 # Default config file name
 declare config_file="timelapse.cfg"
@@ -178,7 +179,8 @@ function processframe {
 	local width="$(echo "$size" | cut -f1 -dx)"
 	local height="$(echo "$size" | cut -f2 -dx)"
 	local crop_gravity="$(getval "crop gravity")"
-	local cropped="${tmpdir}/crop-${out}" marked="${tmpdir}/wm-${out}"
+	local cropped="${tmpdir}/crop-${out}"
+	local marked="${tmpdir}/wm-${out}"
 	local fit=( "" )
 	if [ "${crop_gravity}" == "squash" ]; then
 		fit=(
@@ -199,6 +201,7 @@ function processframe {
 	mkdir -p "${tmpdir}"
 	nice "${magick}" "${frame}" \
 		"${fit[@]}" \
+		"${tmp_options[@]}" \
 		"${cropped}"
 	if [ -z "${disable_watermark:-}" ]; then
 		"${watermark}" --silent \

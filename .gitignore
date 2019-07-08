@@ -10,9 +10,12 @@
 *.gz
 *.zip
 backup.sh
+[0-9][0-9][0-9]\ *
+[0-9][0-9[0-9][0-9[0-9][0-9]]][0-9][0-9]\ */
 !.fonts/*
 !000\ Print/*.sh
 !000\ Print/*.py
+!000\ Collection/web
 .*.swp
 .*.swo
 private-vars.sh
